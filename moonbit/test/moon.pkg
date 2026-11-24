@@ -1,0 +1,7 @@
+import {
+  "totto2727/decision-kit" @decision_kit,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/json",
+  "moonbitlang/core/test" @assertions,
+} for "test"

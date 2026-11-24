@@ -1,0 +1,6 @@
+{
+  "jsPlugins": ["./plugin.mjs"],
+  "rules": {
+    "decision-demo/accurate-test-title": "warn"
+  }
+}

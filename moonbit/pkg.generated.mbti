@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "totto2727/decision-kit"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub async fn read_cached(PredicateRequest, cache_dir~ : String, ttl~ : Int32, now? : Int64) -> Double
+
+pub async fn resolve(PredicateRequest, cache_dir~ : String, ttl~ : Int32, now? : Int64, remote? : Remote) -> Double
+
+// Errors
+#derive(@debug.Debug)
+pub(all) suberror PredicateError {
+  InvalidUnicode(String)
+  EmptyScope
+  InvalidEndpoint
+  InvalidToken
+  InvalidTtl
+  InvalidTime
+  CacheMiss
+  InvalidCache
+  CacheReadFailed
+  CacheWriteFailed
+  TransportFailed
+  HttpStatus(Int32)
+  InvalidResponse
+}
+
+// Types and methods
+type PredicateRequest
+pub fn PredicateRequest::body(Self) -> @json.Json
+pub fn PredicateRequest::key(Self) -> String
+pub fn PredicateRequest::new(endpoint~ : String, scope~ : String, model~ : String, name~ : String, instructions~ : String, input~ : String) -> Self raise PredicateError
+
+type Remote
+pub fn Remote::new(String, transport? : async (String, Map[String, String], @json.Json) -> (Int32, Bytes)) -> Self raise PredicateError
+
+// Type aliases
+pub type Transport = async (String, Map[String, String], @json.Json) -> (Int32, Bytes)
+
+// Traits
