@@ -1,0 +1,59 @@
+---
+import {
+  "moonbitlang/async@0.22.9",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/env",
+  "moonbitlang/x@0.5.7/fs",
+  "totto2727/decision-kit@0.1.0" @decision,
+  "totto2727/mbtlint@0.1.0",
+}
+---
+
+async fn check(path : String, cache_dir : String) -> Bool {
+  let source = @fs.read_file_to_string(path)
+  let tests : Array[String] = []
+  let collect = @mbtlint.Rule("collect", ctx => @mbtlint.Listener(on_decl=decl => {
+    if decl is TopTest(name=Some(_), loc~, ..) && ctx.text(loc) is Some(text) {
+      tests.push(text)
+    }
+  }))
+  let parse_errors = @mbtlint.Config().with_rule(collect).lint(path~, source~)
+  if !parse_errors.is_empty() {
+    for d in parse_errors { println(d) }
+    return false
+  }
+  let review : Set[String] = Set([])
+  for text in tests {
+    let request = @decision.PredicateRequest::new(
+      endpoint="https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions",
+      scope="local-demo", model="gpt-6-luna", name="accurate",
+      instructions="Does the test title describe its assertion?", input=text,
+    )
+    // Cache-only. A missing result is an error, not a passing test.
+    if @decision.read_cached(request, cache_dir~, ttl=3600) < 0.1 {
+      review.add(text)
+    }
+  }
+  let rule = @mbtlint.Rule("review/test-title", ctx => @mbtlint.Listener(on_decl=decl => {
+    if decl is TopTest(name=Some((_, name_loc)), loc~, ..) &&
+      ctx.text(loc) is Some(text) && review.contains(text) {
+      (ctx.report)(name_loc, "Review whether the test title describes the assertion.")
+    }
+  }))
+  let diagnostics = @mbtlint.Config().with_rule(rule).lint(path~, source~)
+  for d in diagnostics { println(d) }
+  diagnostics.is_empty()
+}
+
+async fn main {
+  guard @env.args()[1:] is [path, cache_dir] else {
+    println("Expected a MoonBit source path and a private decision cache directory.")
+    @env.exit(2)
+  }
+  try check(path, cache_dir) catch {
+    err => { @debug.debug(err); @env.exit(2) }
+  } noraise {
+    false => @env.exit(1)
+    true => ()
+  }
+}

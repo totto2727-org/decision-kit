@@ -8,7 +8,7 @@ This repository does not implement a linter or install a command-line tool.
 ## Predicate v1
 
 A request has six strings: the credential scope, endpoint URL, model ID, predicate name, instructions, and input text.
-The scope identifies the caller's authorization boundary without storing a secret.
+The required, nonblank scope identifies the caller's authorization boundary without storing a secret.
 Change it when the tenant, credential permissions, or model deployment changes.
 Source code is input data, not instructions.
 Cache-only lookup must never send the input or contact a provider.
@@ -40,3 +40,4 @@ Do not use model judgments for automatic source rewrites.
 `mbtlint` and Oxlint can remain fully usable without Decision Kit, a credential, or a network connection.
 
 See [MoonBit](moonbit/) and [TypeScript](typescript/) for the two bindings.
+The [mbtlint example](examples/mbtlint/) and [Oxlint plugin](typescript/examples/oxlint/) use cache-only rule evaluation and never send source code to a provider.
