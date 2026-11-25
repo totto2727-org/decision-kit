@@ -1,0 +1,60 @@
+import { generateIgnorePatterns } from '@totto2727/gitignore-patterns'
+import { defineConfig } from 'vite-plus'
+
+const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
+
+export default defineConfig({
+  fmt: {
+    ignorePatterns,
+    arrowParens: 'always',
+    experimentalSortImports: {
+      ignoreCase: true,
+      newlinesBetween: true,
+      order: 'asc',
+    },
+    experimentalSortPackageJson: true,
+    jsxSingleQuote: true,
+    printWidth: 120,
+    proseWrap: 'preserve',
+    semi: false,
+    singleQuote: true,
+  },
+  lint: {
+    ignorePatterns,
+    jsPlugins: ['@totto2727/oxlint'],
+    options: { typeAware: true, typeCheck: true },
+    rules: {
+      'rules/no-eslint-disable-comments': 'error',
+      'rules/no-local-export-list': 'error',
+      'rules/no-redundant-alias': 'error',
+      'rules/require-disable-reason': 'error',
+      'rules/require-import-extension': 'error',
+    },
+  },
+  test: { dir: 'src' },
+  pack: { entry: ['src/index.ts'], format: ['esm'], platform: 'neutral', dts: true, clean: true },
+  run: {
+    tasks: {
+      build: {
+        command: 'vp pack',
+        cache: {
+          input: [{ auto: true }, '!dist/**'],
+          output: ['dist/**'],
+        },
+      },
+      check: {
+        command: 'vp check',
+      },
+      ci: {
+        command: '',
+        dependsOn: ['check', 'test', 'build'],
+      },
+      fix: {
+        command: 'vp check --fix',
+      },
+      test: {
+        command: 'vp test run',
+      },
+    },
+  },
+})
