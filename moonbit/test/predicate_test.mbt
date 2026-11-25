@@ -217,7 +217,7 @@ async test "resolve rejects fallback routes, redirects, bad credentials, and inv
   })
   for
     url in [
-      "https://api.openai.com/v1/decisions",
+      "https://api.openai.com/v1/decisions/other",
       "https://gateway.ai.cloudflare.com@invalid.test/v1/example/team/openai/decisions",
       "\{endpoint}?next=invalid",
       "\{endpoint}\n",

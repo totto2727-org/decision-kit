@@ -23,14 +23,13 @@ let request = @decision_kit.PredicateRequest::new(
 let probability = @decision_kit.read_cached(request, cache_dir~, ttl=3600)
 ```
 
-To select Jev instead of OpenAI Decisions, use `PredicateRequest::jev`.
-Set `gateway_id` to the ID of the AI Gateway that must handle the Workers AI request.
-The constructor sets the model ID to `typesafe/jev`.
+To select [TypeSafe System One](https://docs.typesafe.ai/go/api.md), use `PredicateRequest::jev` without `gateway_id`.
+The model defaults to `jev-latest`.
+Set `model` to `jev-preview` or a release such as `jev-1.14.0` to select a different model.
 
 ```moonbit
 let request = @decision_kit.PredicateRequest::jev(
-  endpoint="https://api.cloudflare.com/client/v4/accounts/example/ai/run",
-  gateway_id="team",
+  endpoint="https://api.typesafe.ai/v1/systemone",
   scope="local-team",
   name="accurate",
   instructions="Does the test title describe its assertion?",
@@ -39,9 +38,12 @@ let request = @decision_kit.PredicateRequest::jev(
 let probability = @decision_kit.read_cached(request, cache_dir~, ttl=3600)
 ```
 
+To use the Cloudflare Workers AI form of Jev, set `endpoint` to `https://api.cloudflare.com/client/v4/accounts/<account>/ai/run` and supply `gateway_id`.
+The model for this form is `typesafe/jev`.
+
 `request.key()` returns the lowercase SHA-256 cache key.
-OpenAI Decisions and Jev use separate cache keys.
-For Jev, the Gateway ID is part of the key.
+OpenAI Decisions, Jev through Workers AI, and Jev System One have separate cache keys.
+The Workers AI key includes the Gateway ID.
 `request.body()` returns one question in the selected provider's format.
 `read_cached` and `resolve` without `remote` never make network requests.
 Missing, future-dated, and expired records raise `CacheMiss`.
@@ -49,30 +51,59 @@ Malformed records raise `InvalidCache`, and other filesystem read failures raise
 Use `now=` with integer Unix seconds to supply a fixed clock for testing.
 Cache timestamps must be within the JavaScript safe integer range for interoperability.
 
-## Opt in to the Gateway
+## Opt in to a remote request
 
 ```moonbit
-let remote = @decision_kit.Remote::new(gateway_token)
+let remote = @decision_kit.Remote::new(token)
 let probability = @decision_kit.resolve(request, cache_dir~, ttl=3600, remote~)
 ```
 
-`resolve` calls the Gateway only on `CacheMiss`, and it sends the full input to the configured Gateway on that call.
+`resolve` makes a remote request only on `CacheMiss` and sends the full input on that call.
 The built-in transport sends one HTTPS POST with system trust roots and a 90-second timeout.
 The transport does not follow redirects or switch routes after a failure.
 
-- For [OpenAI Decisions](https://developers.openai.com/api/reference/resources/decisions/methods/create), use the `gateway.ai.cloudflare.com` URL shown above.
-  Replace the account and Gateway IDs.
-  Supply a token for the `cf-aig-authorization` header.
-- For [Jev through Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/usage/rest-api/), use the `api.cloudflare.com` Workers AI URL shown above.
-  Replace the account ID.
-  Supply a Workers AI token for the `Authorization` header.
-  The client sends `gateway_id` in the `cf-aig-gateway-id` header.
-  The client does not contact the direct TypeSafe API.
+The request endpoint is the full URL, including its path.
+The transport does not append a path.
+You can omit `endpoint` on `Remote::new` for these standard URLs when they match the request format:
 
-Both routes send the Gateway cache key and TTL headers by default.
+| Request format                                                                                     | Standard endpoint                                                           | Authentication                          |
+| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------- |
+| [OpenAI Decisions](https://developers.openai.com/api/reference/resources/decisions/methods/create) | `https://api.openai.com/v1/decisions`                                       | `Authorization`                         |
+| OpenAI Decisions through AI Gateway                                                                | `https://gateway.ai.cloudflare.com/v1/<account>/<gateway>/openai/decisions` | `cf-aig-authorization`                  |
+| Jev System One                                                                                     | `https://api.typesafe.ai/v1/systemone`                                      | `Authorization`                         |
+| Jev through Workers AI                                                                             | `https://api.cloudflare.com/client/v4/accounts/<account>/ai/run`            | `Authorization` and `cf-aig-gateway-id` |
+
+For any other URL, set `endpoint` on `Remote::new` from trusted application configuration.
+The request endpoint must match it exactly, even if the request names a standard URL.
+
+```moonbit
+let remote = @decision_kit.Remote::new(token, endpoint=trusted_endpoint)
+let probability = @decision_kit.resolve(request, cache_dir~, ttl=3600, remote~)
+```
+
+Use `https://`, a lowercase ASCII DNS host, an optional decimal port, and an absolute path.
+The path can contain ASCII letters, digits, `-`, `.`, `_`, `~`, and `/`.
+Do not use credentials in the URL, a query, a fragment, percent encoding, doubled slashes in the path, or `.` and `..` path components.
+The remote sends no credentials when the pin does not match.
+
+### Authenticate to a pinned Cloudflare proxy
+
+For OpenAI Decisions or Jev System One at the exact `https://gateway.ai.cloudflare.com/` authority, the client sends `token` in `cf-aig-authorization` for a stored provider key.
+If the proxy requires both a provider token and a separate Cloudflare token, pass the Cloudflare token as `gateway_token`.
+The client then sends `token` in `Authorization` and `gateway_token` in `cf-aig-authorization`.
+The client rejects `gateway_token` for every other authority, including `api.cloudflare.com`.
+See [Cloudflare AI Gateway authentication](https://developers.cloudflare.com/ai-gateway/configuration/authentication/index.md).
+
+### Select the remote cache policy
+
+The two standard Cloudflare routes send the Gateway cache headers by default.
+Direct endpoints and pinned nonstandard routes omit them by default.
+Set `remote_cache=@decision_kit.RemoteCache::Cloudflare` to send the cache headers, or set `remote_cache=@decision_kit.RemoteCache::None` to omit them.
+This option does not change credentials, the request URL, or the local cache key.
+Omitting the headers leaves the remote cache policy to the service.
 The Gateway cache key is `decision-v1-` followed by `request.key()`.
-Keep the token in your application's secret storage.
-Do not include it in `scope`.
+Keep all tokens in your application's secret storage.
+Do not include a token in `scope`.
 Do not log transport headers or request bodies.
 
 If missing, the cache directory is created with owner-only permissions on POSIX systems.
@@ -83,7 +114,7 @@ Read and write failures remain errors rather than being converted to a probabili
 ## Test locally
 
 From the repository root, run `cd moonbit && moon test --target native --deny-warn`.
-The tests read the shared fixture and inject a fake transport through `Remote::new(token, transport=...)`.
+The tests read the shared fixtures and inject a fake transport through `Remote::new(token, transport=...)`.
 The transport receives the endpoint, headers, and `Json` body and returns an HTTP status and response bytes.
 Use only trusted callbacks, since they receive the same credentials and input as the built-in transport and are responsible for not forwarding them.
 The tests do not contact the live provider or require credentials.

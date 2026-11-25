@@ -5,6 +5,7 @@ pub(all) suberror PredicateError {
   EmptyScope
   InvalidEndpoint
   InvalidGatewayId
+  InvalidModel
   InvalidToken
   InvalidTtl
   InvalidTime
@@ -20,7 +21,8 @@ pub(all) suberror PredicateError {
 ///|
 priv enum Protocol {
   OpenAI
-  Jev(String)
+  JevWorkers(String)
+  JevSystemOne
 }
 
 ///|
@@ -81,17 +83,32 @@ pub fn PredicateRequest::new(
 pub fn PredicateRequest::jev(
   endpoint~ : String,
   scope~ : String,
-  gateway_id~ : String,
+  gateway_id? : String,
+  model? : String,
   name~ : String,
   instructions~ : String,
   input~ : String,
 ) -> PredicateRequest raise PredicateError {
-  guard gateway_id =~ re"^[A-Za-z0-9_\-]+$" else { raise InvalidGatewayId }
+  let (protocol, model) = match gateway_id {
+    Some(id) => {
+      guard id =~ re"^[A-Za-z0-9_\-]+$" else { raise InvalidGatewayId }
+      let selected = model.unwrap_or("typesafe/jev")
+      guard selected == "typesafe/jev" else { raise InvalidModel }
+      (JevWorkers(id), selected)
+    }
+    None => {
+      let selected = model.unwrap_or("jev-latest")
+      guard jev_alias(selected) || jev_release(selected) else {
+        raise InvalidModel
+      }
+      (JevSystemOne, selected)
+    }
+  }
   predicate_request(
-    Jev(gateway_id),
+    protocol,
     endpoint~,
     scope~,
-    model="typesafe/jev",
+    model~,
     name~,
     instructions~,
     input~,
@@ -111,14 +128,15 @@ fn predicate_request(
   guard !scope.trim().is_empty() else { raise EmptyScope }
   let version = match protocol {
     OpenAI => "decision-kit/predicate/v1"
-    Jev(_) => "decision-kit/predicate/jev/v1"
+    JevWorkers(_) => "decision-kit/predicate/jev/v1"
+    JevSystemOne => "decision-kit/predicate/jev-systemone/v1"
   }
   let identity = [
     ("version", version),
     ("scope", scope),
     ("endpoint", endpoint),
   ]
-  if protocol is Jev(gateway_id) {
+  if protocol is JevWorkers(gateway_id) {
     identity.push(("gatewayId", gateway_id))
   }
   identity.push(("model", model))
@@ -145,7 +163,8 @@ pub fn PredicateRequest::key(self : PredicateRequest) -> String {
 pub fn PredicateRequest::body(self : PredicateRequest) -> Json {
   match self.protocol {
     OpenAI => openai_body(self)
-    Jev(_) => jev_body(self)
+    JevWorkers(_) => jev_workers_body(self)
+    JevSystemOne => jev_systemone_body(self)
   }
 }
 

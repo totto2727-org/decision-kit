@@ -6,7 +6,7 @@ repository = "https://github.com/totto2727-org/decision-kit"
 
 license = "MIT"
 
-description = "Cache-first predicates for OpenAI Decisions and Jev through Cloudflare AI Gateway"
+description = "Cache-first predicates for OpenAI Decisions and TypeSafe Jev"
 
 readme = "README.md"
 
