@@ -17,6 +17,23 @@ fn jev_request(
 }
 
 ///|
+async test "shared Jev v1 fixture includes Unicode text and the Gateway ID in the digest" {
+  let file = @fs.read_file("../fixtures/jev-predicate-v1.json")
+  guard @json.parse(file.text()) is Object(vector) else {
+    fail("Invalid shared fixture")
+  }
+  let request = @decision_kit.PredicateRequest::jev(
+    endpoint=field(vector, "endpoint"),
+    gateway_id=field(vector, "gatewayId"),
+    scope=field(vector, "scope"),
+    name=field(vector, "name"),
+    instructions=field(vector, "instructions"),
+    input=field(vector, "input"),
+  )
+  @assertions.assert_eq(request.key(), field(vector, "key"))
+}
+
+///|
 async test "Jev sends one authenticated Noul question and reuses only the matching Gateway cache entry" {
   let cache_dir = @fs.tmpdir(prefix="decision-kit")
   defer @fs.rmdir(cache_dir, recursive=true)
