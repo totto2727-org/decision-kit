@@ -5,11 +5,11 @@ import {
   "moonbitlang/core/env",
   "moonbitlang/x@0.5.7/fs",
   "totto2727/decision-kit@0.1.0" @decision,
-  "totto2727/mbtlint@0.1.0",
+  "totto2727/mbtlint@0.1.0/core" @mbtlint,
 }
 ---
 
-async fn check(path : String, cache_dir : String) -> Bool {
+async fn check(path : String, cache_dir : String, jev : Bool) -> Bool {
   let source = @fs.read_file_to_string(path)
   let tests : Array[String] = []
   let collect = @mbtlint.Rule("collect", ctx => @mbtlint.Listener(on_decl=decl => {
@@ -24,11 +24,19 @@ async fn check(path : String, cache_dir : String) -> Bool {
   }
   let review : Set[String] = Set([])
   for text in tests {
-    let request = @decision.PredicateRequest::new(
-      endpoint="https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions",
-      scope="local-demo", model="gpt-6-luna", name="accurate",
-      instructions="Does the test title describe its assertion?", input=text,
-    )
+    let request = if jev {
+      @decision.PredicateRequest::jev(
+        endpoint="https://api.cloudflare.com/client/v4/accounts/example/ai/run",
+        gateway_id="team", scope="local-demo", name="accurate",
+        instructions="Does the test title describe its assertion?", input=text,
+      )
+    } else {
+      @decision.PredicateRequest::new(
+        endpoint="https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions",
+        scope="local-demo", model="gpt-6-luna", name="accurate",
+        instructions="Does the test title describe its assertion?", input=text,
+      )
+    }
     // Cache-only. A missing result is an error, not a passing test.
     if @decision.read_cached(request, cache_dir~, ttl=3600) < 0.1 {
       review.add(text)
@@ -45,15 +53,22 @@ async fn check(path : String, cache_dir : String) -> Bool {
   diagnostics.is_empty()
 }
 
-async fn main {
-  guard @env.args()[1:] is [path, cache_dir] else {
-    println("Expected a MoonBit source path and a private decision cache directory.")
-    @env.exit(2)
-  }
-  try check(path, cache_dir) catch {
+async fn run(path : String, cache_dir : String, jev : Bool) -> Unit {
+  try check(path, cache_dir, jev) catch {
     err => { @debug.debug(err); @env.exit(2) }
   } noraise {
     false => @env.exit(1)
     true => ()
+  }
+}
+
+async fn main {
+  match @env.args()[1:] {
+    [path, cache_dir] => run(path, cache_dir, false)
+    [path, cache_dir, "--jev"] => run(path, cache_dir, true)
+    _ => {
+      println("Expected a MoonBit source path, a private decision cache directory, and optional --jev.")
+      @env.exit(2)
+    }
   }
 }
