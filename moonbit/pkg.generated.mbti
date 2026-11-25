@@ -17,6 +17,7 @@ pub(all) suberror PredicateError {
   InvalidUnicode(String)
   EmptyScope
   InvalidEndpoint
+  InvalidGatewayId
   InvalidToken
   InvalidTtl
   InvalidTime
@@ -32,6 +33,7 @@ pub(all) suberror PredicateError {
 // Types and methods
 type PredicateRequest
 pub fn PredicateRequest::body(Self) -> @json.Json
+pub fn PredicateRequest::jev(endpoint~ : String, scope~ : String, gateway_id~ : String, name~ : String, instructions~ : String, input~ : String) -> Self raise PredicateError
 pub fn PredicateRequest::key(Self) -> String
 pub fn PredicateRequest::new(endpoint~ : String, scope~ : String, model~ : String, name~ : String, instructions~ : String, input~ : String) -> Self raise PredicateError
 

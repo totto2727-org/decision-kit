@@ -33,14 +33,19 @@ pub fn Remote::new(
 }
 
 ///|
-fn validate_endpoint(endpoint : String) -> Unit raise PredicateError {
-  guard endpoint =~ re"^https://gateway[.]ai[.]cloudflare[.]com/v1/[A-Za-z0-9_\-]+/[A-Za-z0-9_\-]+/openai/decisions$" else {
-    raise InvalidEndpoint
+fn validate_endpoint(request : PredicateRequest) -> Unit raise PredicateError {
+  let endpoint = request.endpoint
+  let valid = match request.protocol {
+    OpenAI =>
+      endpoint =~ re"^https://gateway[.]ai[.]cloudflare[.]com/v1/[A-Za-z0-9_\-]+/[A-Za-z0-9_\-]+/openai/decisions$"
+    Jev(_) =>
+      endpoint =~ re"^https://api[.]cloudflare[.]com/client/v4/accounts/[A-Za-z0-9_\-]+/ai/run$"
   }
+  guard valid else { raise InvalidEndpoint }
 }
 
 ///|
-fn response_probability(
+fn openai_probability(
   request : PredicateRequest,
   json : Json,
 ) -> Double raise PredicateError {
@@ -75,14 +80,20 @@ pub async fn resolve(
     probability => return probability
   }
   guard remote is Some(remote) else { raise PredicateError::CacheMiss }
-  validate_endpoint(request.endpoint)
+  validate_endpoint(request)
   validate_time(lookup_time + ttl.to_int64())
   let headers = {
-    "cf-aig-authorization": "Bearer \{remote.token}",
     "cf-aig-cache-key": "decision-v1-\{request.key()}",
     "cf-aig-cache-ttl": ttl.to_string(),
     "cf-aig-skip-cache": "false",
     "content-type": "application/json",
+  }
+  match request.protocol {
+    OpenAI => headers["cf-aig-authorization"] = "Bearer \{remote.token}"
+    Jev(gateway_id) => {
+      headers["authorization"] = "Bearer \{remote.token}"
+      headers["cf-aig-gateway-id"] = gateway_id
+    }
   }
   let (status, bytes) = (remote.transport)(
     request.endpoint,
@@ -97,7 +108,10 @@ pub async fn resolve(
   let json = parse_json(bytes) catch {
     _ => raise PredicateError::InvalidResponse
   }
-  let probability = response_probability(request, json)
+  let probability = match request.protocol {
+    OpenAI => openai_probability(request, json)
+    Jev(_) => jev_probability(request, json)
+  }
   let written_at = now.unwrap_or_else(epoch_seconds)
   write_cache(request, cache_dir, ttl, written_at, probability)
   probability
