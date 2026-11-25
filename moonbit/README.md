@@ -2,7 +2,8 @@
 
 Import `totto2727/decision-kit` as `@decision_kit` in a native MoonBit package.
 Decision Kit uses the official MoonBit async filesystem and HTTP libraries and does not require a subprocess.
-See the [shared predicate v1 contract](../README.md#predicate-v1) for cache interoperability with TypeScript.
+Choose OpenAI Decisions or Jev when you construct a request.
+See the [shared cache contract](../README.md#interoperable-cache) for cache interoperability with TypeScript.
 
 ## Read a predicate from the cache
 
@@ -22,7 +23,26 @@ let request = @decision_kit.PredicateRequest::new(
 let probability = @decision_kit.read_cached(request, cache_dir~, ttl=3600)
 ```
 
-`request.key()` is the lowercase SHA-256 cache key, and `request.body()` is the one-question Decisions JSON.
+To select Jev instead of OpenAI Decisions, use `PredicateRequest::jev`.
+Set `gateway_id` to the ID of the AI Gateway that must handle the Workers AI request.
+The constructor sets the model ID to `typesafe/jev`.
+
+```moonbit
+let request = @decision_kit.PredicateRequest::jev(
+  endpoint="https://api.cloudflare.com/client/v4/accounts/example/ai/run",
+  gateway_id="team",
+  scope="local-team",
+  name="accurate",
+  instructions="Does the test title describe its assertion?",
+  input="Test title: returns zero. Assertion: result == 0.",
+)
+let probability = @decision_kit.read_cached(request, cache_dir~, ttl=3600)
+```
+
+`request.key()` returns the lowercase SHA-256 cache key.
+OpenAI Decisions and Jev use separate cache keys.
+For Jev, the Gateway ID is part of the key.
+`request.body()` returns one question in the selected provider's format.
 `read_cached` and `resolve` without `remote` never make network requests.
 Missing, future-dated, and expired records raise `CacheMiss`.
 Malformed records raise `InvalidCache`, and other filesystem read failures raise `CacheReadFailed`.
@@ -37,9 +57,22 @@ let probability = @decision_kit.resolve(request, cache_dir~, ttl=3600, remote~)
 ```
 
 `resolve` calls the Gateway only on `CacheMiss`, and it sends the full input to the configured Gateway on that call.
-The built-in transport performs a single HTTPS POST with system trust roots and a 90-second timeout.
-It does not follow redirects or change the route, and it accepts only the Cloudflare Gateway OpenAI Decisions URL shown above with the account and Gateway IDs replaced.
-Supply the bearer token through your application's secret storage and never include it in `scope`.
+The built-in transport sends one HTTPS POST with system trust roots and a 90-second timeout.
+The transport does not follow redirects or switch routes after a failure.
+
+- For [OpenAI Decisions](https://developers.openai.com/api/reference/resources/decisions/methods/create), use the `gateway.ai.cloudflare.com` URL shown above.
+  Replace the account and Gateway IDs.
+  Supply a token for the `cf-aig-authorization` header.
+- For [Jev through Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/usage/rest-api/), use the `api.cloudflare.com` Workers AI URL shown above.
+  Replace the account ID.
+  Supply a Workers AI token for the `Authorization` header.
+  The client sends `gateway_id` in the `cf-aig-gateway-id` header.
+  The client does not contact the direct TypeSafe API.
+
+Both routes send the Gateway cache key and TTL headers by default.
+The Gateway cache key is `decision-v1-` followed by `request.key()`.
+Keep the token in your application's secret storage.
+Do not include it in `scope`.
 Do not log transport headers or request bodies.
 
 If missing, the cache directory is created with owner-only permissions on POSIX systems.
@@ -54,3 +87,5 @@ The tests read the shared fixture and inject a fake transport through `Remote::n
 The transport receives the endpoint, headers, and `Json` body and returns an HTTP status and response bytes.
 Use only trusted callbacks, since they receive the same credentials and input as the built-in transport and are responsible for not forwarding them.
 The tests do not contact the live provider or require credentials.
+
+Decision Kit uses the [MIT license](../LICENSE).

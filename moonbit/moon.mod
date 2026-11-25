@@ -2,7 +2,11 @@ name = "totto2727/decision-kit"
 
 version = "0.1.0"
 
-description = "Cache-first OpenAI Decisions predicates through Cloudflare AI Gateway"
+repository = "https://github.com/totto2727-org/decision-kit"
+
+license = "MIT"
+
+description = "Cache-first predicates for OpenAI Decisions and Jev through Cloudflare AI Gateway"
 
 readme = "README.md"
 
