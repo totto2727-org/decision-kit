@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    effect:
+      specifier: ^4.0.2
+      version: 4.1.5
     vite-plus:
       specifier: 1.7.0
       version: 1.7.0
@@ -33,6 +36,9 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
+      effect:
+        specifier: 'catalog:'
+        version: 4.1.5
       oxlint:
         specifier: ^1.94.0
         version: 1.94.0(vite-plus@1.7.0(@types/node@24.19.2)(@vitest/ui@5.1.0)(typescript@7.0.2))
@@ -46,7 +52,7 @@ importers:
   typescript:
     dependencies:
       effect:
-        specifier: ^4.0.2
+        specifier: 'catalog:'
         version: 4.1.5
 
 packages:

@@ -48,6 +48,7 @@ export default defineConfig({
       },
       check: {
         command: 'vp check',
+        dependsOn: ['build'],
       },
       ci: {
         command: '',
@@ -65,6 +66,7 @@ export default defineConfig({
         command: 'vp test run',
       },
       'test:oxlint': {
+        cache: { env: ['OXLINT_BIN'] },
         command: 'node --test typescript/examples/oxlint/plugin.test.mjs',
         dependsOn: ['build'],
       },

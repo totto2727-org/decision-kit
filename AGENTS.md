@@ -30,6 +30,7 @@ Use the shared `@totto2727/oxlint` library preset, including type-aware checks.
 The Oxlint sample source is a test fixture, not SDK source, and is checked by its own plugin test.
 Keep Effect external to the ESM bundle.
 The SDK package exports the generated JavaScript and TypeScript declarations from `typescript/dist/`.
+The TypeScript check builds the package first so the Oxlint example can resolve the public declarations.
 `vp run package` creates a local archive in `tmp/` without publishing it.
 
 ## MoonBit development
