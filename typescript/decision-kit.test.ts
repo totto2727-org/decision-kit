@@ -12,9 +12,11 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 // oxlint-disable-next-line import/no-relative-parent-imports -- Both bindings consume this shared protocol fixture.
 import sharedJevVector from '../fixtures/jev-predicate-v1.json' with { type: 'json' }
 // oxlint-disable-next-line import/no-relative-parent-imports -- Both bindings consume this shared protocol fixture.
+import sharedSystemOneVector from '../fixtures/jev-systemone-v1.json' with { type: 'json' }
+// oxlint-disable-next-line import/no-relative-parent-imports -- Both bindings consume this shared protocol fixture.
 import sharedVector from '../fixtures/predicate-v1.json' with { type: 'json' }
 import { createDecisionClient, DecisionError, lookupSync, predicateKey } from './decision-kit.ts'
-import type { DecisionClient, DecisionErrorCode, PredicateRequest } from './decision-kit.ts'
+import type { DecisionClient, DecisionErrorCode, PredicateRequest, RemoteCache } from './decision-kit.ts'
 
 const request = {
   endpoint: 'https://gateway.ai.cloudflare.com/v1/mock/gateway/openai/decisions',
@@ -31,6 +33,13 @@ const jevRequest = {
   model: 'typesafe/jev',
   provider: 'jev',
 } satisfies PredicateRequest
+const systemOneRequest = {
+  ...request,
+  endpoint: 'https://api.typesafe.ai/v1/systemone',
+  model: 'jev-latest',
+  provider: 'jev',
+} satisfies PredicateRequest
+const proxyEndpoint = 'https://decisions.example.test:8443/custom/V2/predicate'
 const key = '608522ea367b87110bafd75a590d712569324332f7f71351011f05de709f3c9e'
 const answer = { name: request.name, probability: 0.75, type: 'predicate' }
 const answerBody = { answers: [answer], model: request.model }
@@ -63,8 +72,13 @@ const useCache = (onTestFinished: (cleanup: () => void) => void): string => {
   return dir
 }
 
-const remoteClient = (cacheDir: string, transport: typeof globalThis.fetch): DecisionClient =>
+const remoteClient = (
+  cacheDir: string,
+  transport: typeof globalThis.fetch,
+  options: Readonly<{ endpoint?: string; gatewayToken?: string; remoteCache?: RemoteCache }> = {},
+): DecisionClient =>
   createDecisionClient({
+    ...options,
     cacheDir,
     fetch: transport,
     mode: 'remote',
@@ -119,6 +133,12 @@ describe('predicate decisions', () => {
     const { key: expected, model, provider, ...fields } = sharedJevVector
     expect({ model, provider }).toStrictEqual({ model: 'typesafe/jev', provider: 'jev' })
     expect(predicateKey({ ...fields, model: 'typesafe/jev', provider: 'jev' })).toBe(expected)
+  })
+
+  test('matches the independent direct Jev System One cache key', () => {
+    const { key: expected, model, provider, ...fields } = sharedSystemOneVector
+    expect({ model, provider }).toStrictEqual({ model: 'jev-latest', provider: 'jev' })
+    expect(predicateKey({ ...fields, model: 'jev-latest', provider: 'jev' })).toBe(expected)
   })
 
   test('lookup and resolution are lazy and cache-only lookup is synchronous', async ({ onTestFinished }) => {
@@ -291,6 +311,9 @@ describe('predicate decisions', () => {
       { ...request, endpoint: jevRequest.endpoint },
       { ...jevRequest, endpoint: request.endpoint },
       { ...jevRequest, endpoint: 'https://api.typesafe.ai/v1/run' },
+      { ...jevRequest, endpoint: systemOneRequest.endpoint },
+      { ...request, endpoint: systemOneRequest.endpoint },
+      { ...systemOneRequest, endpoint: jevRequest.endpoint },
       { ...jevRequest, endpoint: `${jevRequest.endpoint}?gateway=other` },
       { ...jevRequest, gatewayId: 'invalid\n' },
     ]
@@ -300,6 +323,228 @@ describe('predicate decisions', () => {
       }),
     )
     expect(transport).not.toHaveBeenCalled()
+  })
+
+  test('pins the full proxy URL and does not fall back to a standard endpoint', async ({ onTestFinished }) => {
+    const cacheDir = useCache(onTestFinished)
+    const transport = vi.fn<typeof globalThis.fetch>().mockResolvedValue(Response.json(answerBody))
+    const client = remoteClient(cacheDir, transport, { endpoint: proxyEndpoint })
+    const candidate = { ...request, endpoint: proxyEndpoint }
+    assertFailure(await resolution(client, request), 'invalid-request')
+    assertFailure(await resolution(client, { ...candidate, endpoint: `${proxyEndpoint}/` }), 'invalid-request')
+    expect(transport).not.toHaveBeenCalled()
+    await expect(resolve(client, candidate)).resolves.toBe(0.75)
+    const [[url, init] = []] = transport.mock.calls
+    expect(url).toHaveProperty('href', proxyEndpoint)
+    expect(init).toMatchObject({ method: 'POST', redirect: 'error' })
+    expect(Object.fromEntries(new Headers(init?.headers))).toStrictEqual({
+      authorization: 'Bearer mock-token',
+      'content-type': 'application/json',
+    })
+    expect(requestBody(init)).toStrictEqual({
+      input: request.input,
+      model: request.model,
+      questions: [{ instructions: request.instructions, name: request.name, type: 'predicate' }],
+    })
+  })
+
+  test('rejects malformed pins before invoking the transport', async ({ onTestFinished }) => {
+    const cacheDir = useCache(onTestFinished)
+    const transport = vi.fn<typeof globalThis.fetch>()
+    const endpoints = [
+      '/custom/V2/predicate',
+      'http://decisions.example.test/path',
+      'https://user@decisions.example.test/path',
+      String.raw`https://decisions.example.test\other.test/path`,
+      'https://decisions.example.test:0/path',
+      'https://decisions.example.test:65536/path',
+      'https://decisions.example.test:08443/path',
+      'https://Decisions.example.test/path',
+      'https://127.0.0.1/path',
+      'https://-decisions.example.test/path',
+      `https://${'a'.repeat(64)}.example.test/path`,
+      'https://decisions.example.test',
+      'https://decisions.example.test/a//path',
+      'https://decisions.example.test/a/../path',
+      'https://decisions.example.test/a/./path',
+      'https://decisions.example.test/a%2fpath',
+      'https://decisions.example.test/a%2e/path',
+      `${proxyEndpoint}?`,
+      `${proxyEndpoint}#`,
+      `${proxyEndpoint}\t`,
+      `${proxyEndpoint}\n`,
+      `${proxyEndpoint} path`,
+    ]
+    await Promise.all(
+      endpoints.map(async (endpoint) => {
+        const client = remoteClient(cacheDir, transport, { endpoint })
+        assertFailure(await resolution(client, { ...request, endpoint }), 'invalid-configuration')
+      }),
+    )
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  test('opts official direct OpenAI in to Cloudflare headers without changing authorization or the local key', async ({
+    onTestFinished,
+  }) => {
+    const candidate = { ...request, endpoint: 'https://api.openai.com/v1/decisions' }
+    const cacheDir = useCache(onTestFinished)
+    const requestKey = predicateKey(candidate)
+    const transport = vi.fn<typeof globalThis.fetch>().mockResolvedValue(Response.json(answerBody))
+    const cloudflare = remoteClient(cacheDir, transport, { remoteCache: 'cloudflare' })
+    await expect(resolve(cloudflare, candidate)).resolves.toBe(0.75)
+    const [[url, init] = []] = transport.mock.calls
+    expect(url).toHaveProperty('href', candidate.endpoint)
+    expect(Object.fromEntries(new Headers(init?.headers))).toStrictEqual({
+      authorization: 'Bearer mock-token',
+      'cf-aig-cache-key': `decision-v1-${requestKey}`,
+      'cf-aig-cache-ttl': `${ttlSeconds}`,
+      'cf-aig-skip-cache': 'false',
+      'content-type': 'application/json',
+    })
+    const none = remoteClient(cacheDir, transport, { remoteCache: 'none' })
+    await expect(resolve(none, candidate)).resolves.toBe(0.75)
+    expect(transport).toHaveBeenCalledOnce()
+    expect(readdirSync(cacheDir)).toStrictEqual([`${requestKey}.json`])
+  })
+
+  test('omits only the cache headers when disabled on both canonical Cloudflare protocols', async ({
+    onTestFinished,
+  }) => {
+    const transport = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(Response.json(answerBody))
+      .mockResolvedValueOnce(Response.json(jevResponse))
+    const client = remoteClient(useCache(onTestFinished), transport, { remoteCache: 'none' })
+    await expect(resolve(client, request)).resolves.toBe(0.75)
+    await expect(resolve(client, jevRequest)).resolves.toBe(0.25)
+    const headers = transport.mock.calls.map(([, init]) => Object.fromEntries(new Headers(init?.headers)))
+    expect(headers).toStrictEqual([
+      { 'cf-aig-authorization': 'Bearer mock-token', 'content-type': 'application/json' },
+      {
+        authorization: 'Bearer mock-token',
+        'cf-aig-gateway-id': jevRequest.gatewayId,
+        'content-type': 'application/json',
+      },
+    ])
+  })
+
+  test('sends direct Jev to System One and a pinned proxy using the unwrapped protocol', async ({ onTestFinished }) => {
+    const cacheDir = useCache(onTestFinished)
+    const pinned = {
+      ...systemOneRequest,
+      endpoint: proxyEndpoint,
+      model: 'jev-1.13.0',
+    } as const satisfies PredicateRequest
+    const transport = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(Response.json({ ...jevCompleted.result, usage: { input_tokens: 50 } }))
+      .mockResolvedValueOnce(Response.json(jevCompleted.result))
+    await expect(resolve(remoteClient(cacheDir, transport), systemOneRequest)).resolves.toBe(0.25)
+    await expect(resolve(remoteClient(cacheDir, transport, { endpoint: proxyEndpoint }), pinned)).resolves.toBe(0.25)
+    const calls = transport.mock.calls.map(([url, init]) => ({
+      body: requestBody(init),
+      headers: Object.fromEntries(new Headers(init?.headers)),
+      url,
+    }))
+    expect(calls).toMatchObject(
+      [systemOneRequest, pinned].map((candidate) => ({
+        body: {
+          model: candidate.model,
+          questions: { urgent: { instructions: candidate.instructions, type: 'noul' } },
+          state: candidate.input,
+        },
+        url: { href: candidate.endpoint },
+      })),
+    )
+    expect(calls.map(({ headers }) => headers)).toStrictEqual([
+      { authorization: 'Bearer mock-token', 'content-type': 'application/json' },
+      { authorization: 'Bearer mock-token', 'content-type': 'application/json' },
+    ])
+  })
+
+  test('separates provider-native Jev gateway credentials from the remote cache policy', async ({ onTestFinished }) => {
+    const endpoint = 'https://gateway.ai.cloudflare.com/v1/mock/gateway/typesafe/v1/systemone'
+    const candidate = { ...systemOneRequest, endpoint }
+    const transport = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(Response.json(jevCompleted.result))
+      .mockResolvedValueOnce(Response.json(jevCompleted.result))
+      .mockResolvedValueOnce(Response.json(jevCompleted.result))
+    const storedKey = remoteClient(useCache(onTestFinished), transport, { endpoint })
+    await expect(resolve(storedKey, candidate)).resolves.toBe(0.25)
+    const gatewayToken = 'mock-gateway-token'
+    const providerKey = remoteClient(useCache(onTestFinished), transport, {
+      endpoint,
+      gatewayToken,
+      remoteCache: 'none',
+    })
+    await expect(resolve(providerKey, candidate)).resolves.toBe(0.25)
+    const providerKeyWithCache = remoteClient(useCache(onTestFinished), transport, {
+      endpoint,
+      gatewayToken,
+      remoteCache: 'cloudflare',
+    })
+    await expect(resolve(providerKeyWithCache, candidate)).resolves.toBe(0.25)
+    const headers = transport.mock.calls.map(([, init]) => Object.fromEntries(new Headers(init?.headers)))
+    const separateAuth = {
+      authorization: 'Bearer mock-token',
+      'cf-aig-authorization': `Bearer ${gatewayToken}`,
+      'content-type': 'application/json',
+    }
+    expect(headers).toStrictEqual([
+      { 'cf-aig-authorization': 'Bearer mock-token', 'content-type': 'application/json' },
+      separateAuth,
+      {
+        ...separateAuth,
+        'cf-aig-cache-key': `decision-v1-${predicateKey(candidate)}`,
+        'cf-aig-cache-ttl': `${ttlSeconds}`,
+        'cf-aig-skip-cache': 'false',
+      },
+    ])
+  })
+
+  test('rejects an invalid or ineligible gatewayToken before invoking the transport', async ({ onTestFinished }) => {
+    const cacheDir = useCache(onTestFinished)
+    const transport = vi.fn<typeof globalThis.fetch>()
+    const samples = [
+      { candidate: request, options: { gatewayToken: 'invalid token' } },
+      { candidate: jevRequest, options: { gatewayToken: 'mock-gateway-token' } },
+      { candidate: systemOneRequest, options: { gatewayToken: 'mock-gateway-token' } },
+      ...['https://gateway.ai.cloudflare.com.fake.test/path', 'https://gateway.ai.cloudflare.com:8443/path'].map(
+        (endpoint) => ({
+          candidate: { ...systemOneRequest, endpoint },
+          options: { endpoint, gatewayToken: 'mock-gateway-token' },
+        }),
+      ),
+    ]
+    await Promise.all(
+      samples.map(async ({ candidate, options }) => {
+        assertFailure(await resolution(remoteClient(cacheDir, transport, options), candidate), 'invalid-configuration')
+      }),
+    )
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  test('rejects cross-protocol and mismatched System One responses', async ({ onTestFinished }) => {
+    const cacheDir = useCache(onTestFinished)
+    const release = { ...systemOneRequest, model: 'jev-1.14.0' } as const satisfies PredicateRequest
+    const samples = [
+      { candidate: systemOneRequest, payload: jevResponse },
+      { candidate: systemOneRequest, payload: answerBody },
+      { candidate: systemOneRequest, payload: { ...jevCompleted.result, error: { message: 'not a decision' } } },
+      { candidate: systemOneRequest, payload: { ...jevCompleted.result, model: 'jev-preview' } },
+      { candidate: release, payload: jevCompleted.result },
+      { candidate: request, payload: jevCompleted.result },
+      { candidate: jevRequest, payload: jevCompleted.result },
+    ]
+    await Promise.all(
+      samples.map(async ({ candidate, payload }) => {
+        const transport = vi.fn<typeof globalThis.fetch>().mockResolvedValue(Response.json(payload))
+        assertFailure(await resolution(remoteClient(cacheDir, transport), candidate), 'invalid-response')
+      }),
+    )
+    expect(readdirSync(cacheDir)).toStrictEqual([])
   })
 
   test('failed atomic replacement cleans up its temporary file', async ({ onTestFinished }) => {

@@ -4,6 +4,7 @@ import type { Effect } from 'effect'
 const Utf8String = Schema.String.check(Schema.makeFilter((value: string) => value.isWellFormed()))
 const NonblankString = Utf8String.check(Schema.isPattern(/\S/u))
 const GatewayId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_-]+(?![\s\S])/u))
+export const BearerToken = Schema.String.check(Schema.isPattern(/^[\u0021-\u007E]+(?![\s\S])/u))
 const PredicateFields = {
   endpoint: Utf8String,
   input: Utf8String,
@@ -16,13 +17,23 @@ const OpenAIRequest = Schema.Struct({
   model: Utf8String,
   provider: Schema.optionalKey(Schema.Literal('openai-decisions')),
 })
-const JevRequest = Schema.Struct({
+const WorkersJevRequest = Schema.Struct({
   ...PredicateFields,
   gatewayId: GatewayId,
   model: Schema.Literal('typesafe/jev'),
   provider: Schema.Literal('jev'),
 })
-const PredicateRequestSchema = Schema.Union([OpenAIRequest, JevRequest])
+export const JevRelease = Schema.TemplateLiteral(['jev-', Schema.String]).check(
+  Schema.isPattern(/^jev-\d+\.\d+\.\d+(?![\s\S])/u),
+)
+export const JevSystemOneModel = Schema.Union([JevRelease, Schema.Literals(['jev-latest', 'jev-preview'])])
+const SystemOneJevRequest = Schema.Struct({
+  ...PredicateFields,
+  gatewayId: Schema.optionalKey(Schema.Never),
+  model: JevSystemOneModel,
+  provider: Schema.Literal('jev'),
+})
+const PredicateRequestSchema = Schema.Union([OpenAIRequest, WorkersJevRequest, SystemOneJevRequest])
 export type PredicateRequest = typeof PredicateRequestSchema.Type
 const decodeRequest = Schema.decodeResult(PredicateRequestSchema)
 
@@ -60,7 +71,19 @@ export const parseRequest = (request: PredicateRequest): Result.Result<Predicate
 }
 
 export type Decision = Effect.Effect<number, DecisionError>
-export type RemoteOptions = Readonly<{ fetch?: typeof globalThis.fetch; mode: 'remote'; token: string }>
+export const RemoteCachePolicy = Schema.Literals(['none', 'cloudflare'])
+export type RemoteCache = typeof RemoteCachePolicy.Type
+export type RemoteOptions = Readonly<{
+  /** Pin a trusted, complete HTTPS endpoint for remote calls. */
+  endpoint?: string
+  fetch?: typeof globalThis.fetch
+  /** Send separate Cloudflare and provider tokens to a provider-native Gateway route. */
+  gatewayToken?: string
+  mode: 'remote'
+  /** Control only Cloudflare's remote cache headers, not the local cache. */
+  remoteCache?: RemoteCache
+  token: string
+}>
 type CacheOptions = Readonly<{ cacheDir: string; ttlSeconds: number }>
 export type DecisionClientOptions = CacheOptions & (Readonly<{ mode?: 'cache-only' }> | RemoteOptions)
 

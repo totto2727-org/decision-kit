@@ -7,7 +7,7 @@ import { mkdir, open, rename, unlink } from 'node:fs/promises'
 // oxlint-disable-next-line rules/no-node-imports -- Resolve cache files using Node host path semantics.
 import Path from 'node:path'
 
-import { Clock, Effect, Schema } from 'effect'
+import { Clock, Effect, Predicate, Schema } from 'effect'
 
 import { decisionError, Probability } from './decision-contract.ts'
 import type { Decision, DecisionError, PredicateRequest } from './decision-contract.ts'
@@ -28,12 +28,20 @@ const decodeCache = Schema.decodeEffect(Schema.fromJsonString(CacheRecord))
 const isMissingFile = Schema.is(Schema.Struct({ code: Schema.Literal('ENOENT') }))
 const utf8 = new TextDecoder('utf-8', { fatal: true })
 
+const keyPrefix = (request: PredicateRequest): string[] => {
+  const { scope, endpoint } = request
+  if (request.provider !== 'jev') {
+    return ['decision-kit/predicate/v1', scope, endpoint]
+  }
+  if (Predicate.isNullish(request.gatewayId)) {
+    return ['decision-kit/predicate/jev-systemone/v1', scope, endpoint]
+  }
+  return ['decision-kit/predicate/jev/v1', scope, endpoint, request.gatewayId]
+}
+
 export const hashRequest = (request: PredicateRequest): string => {
-  const { scope, endpoint, model, name, instructions, input } = request
-  const fields =
-    request.provider === 'jev'
-      ? ['decision-kit/predicate/jev/v1', scope, endpoint, request.gatewayId, model, name, instructions, input]
-      : ['decision-kit/predicate/v1', scope, endpoint, model, name, instructions, input]
+  const { model, name, instructions, input } = request
+  const fields = [...keyPrefix(request), model, name, instructions, input]
   const hash = createHash('sha256')
   fields.forEach((field) => {
     hash.update(`${Buffer.byteLength(field, 'utf8')}:`, 'ascii')

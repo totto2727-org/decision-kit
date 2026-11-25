@@ -2,7 +2,7 @@
   "name": "@totto2727/decision-kit",
   "version": "0.1.0",
   "private": true,
-  "description": "Effect client for cached OpenAI Decisions and Jev predicates through Cloudflare AI Gateway",
+  "description": "Effect client for cached OpenAI Decisions and Jev predicates across direct, gateway, and proxy endpoints",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,6 +1,6 @@
 import { Effect, Predicate, Result, Schema } from 'effect'
 
-import { decisionError, parseRequest } from './decision-contract.ts'
+import { BearerToken, decisionError, parseRequest } from './decision-contract.ts'
 import type {
   Decision,
   DecisionClient,
@@ -14,14 +14,19 @@ import { cacheSlot, hashRequest, readCache, writeCache } from './predicate-cache
 import type { CacheSlot } from './predicate-cache.ts'
 
 export { DecisionError } from './decision-contract.ts'
-export type { DecisionClient, DecisionClientOptions, DecisionErrorCode, PredicateRequest } from './decision-contract.ts'
+export type {
+  DecisionClient,
+  DecisionClientOptions,
+  DecisionErrorCode,
+  PredicateRequest,
+  RemoteCache,
+} from './decision-contract.ts'
 
 const Ttl = Schema.Int.check(Schema.isBetween({ maximum: 2_592_000, minimum: 60 }))
 const CacheDirectory = Schema.NonEmptyString.check(Schema.makeFilter((value: string) => !value.includes('\0')))
-const Token = Schema.String.check(Schema.isPattern(/^[\u0021-\u007E]+(?![\s\S])/u))
 const isTtl = Schema.is(Ttl)
 const isCacheDirectory = Schema.is(CacheDirectory)
-const isToken = Schema.is(Token)
+const isBearerToken = Schema.is(BearerToken)
 
 type OpenDecision = Readonly<{ remote: RemoteOptions | undefined; slot: CacheSlot; snapshot: PredicateRequest }>
 
@@ -32,8 +37,8 @@ const validateOptions = (options: DecisionClientOptions): Effect.Effect<Decision
   if (!isCacheDirectory(options.cacheDir)) {
     return Effect.fail(decisionError('invalid-configuration', 'A caller-private cache directory is required.'))
   }
-  if (options.mode === 'remote' && !isToken(options.token)) {
-    return Effect.fail(decisionError('invalid-configuration', 'Remote mode requires a valid gateway token.'))
+  if (options.mode === 'remote' && !isBearerToken(options.token)) {
+    return Effect.fail(decisionError('invalid-configuration', 'Remote mode requires a valid bearer token.'))
   }
   return Effect.succeed(options)
 }
