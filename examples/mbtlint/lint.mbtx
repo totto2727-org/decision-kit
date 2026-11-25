@@ -9,7 +9,9 @@ import {
 }
 ---
 
-async fn check(path : String, cache_dir : String, jev : Bool) -> Bool {
+enum Format { Decisions; WorkersAI; SystemOne }
+
+async fn check(path : String, cache_dir : String, format : Format) -> Bool {
   let source = @fs.read_file_to_string(path)
   let tests : Array[String] = []
   let collect = @mbtlint.Rule("collect", ctx => @mbtlint.Listener(on_decl=decl => {
@@ -24,14 +26,18 @@ async fn check(path : String, cache_dir : String, jev : Bool) -> Bool {
   }
   let review : Set[String] = Set([])
   for text in tests {
-    let request = if jev {
-      @decision.PredicateRequest::jev(
+    let request = match format {
+      WorkersAI => @decision.PredicateRequest::jev(
         endpoint="https://api.cloudflare.com/client/v4/accounts/example/ai/run",
         gateway_id="team", scope="local-demo", name="accurate",
         instructions="Does the test title describe its assertion?", input=text,
       )
-    } else {
-      @decision.PredicateRequest::new(
+      SystemOne => @decision.PredicateRequest::jev(
+        endpoint="https://api.typesafe.ai/v1/systemone",
+        model="jev-latest", scope="local-demo", name="accurate",
+        instructions="Does the test title describe its assertion?", input=text,
+      )
+      Decisions => @decision.PredicateRequest::new(
         endpoint="https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions",
         scope="local-demo", model="gpt-6-luna", name="accurate",
         instructions="Does the test title describe its assertion?", input=text,
@@ -53,8 +59,8 @@ async fn check(path : String, cache_dir : String, jev : Bool) -> Bool {
   diagnostics.is_empty()
 }
 
-async fn run(path : String, cache_dir : String, jev : Bool) -> Unit {
-  try check(path, cache_dir, jev) catch {
+async fn run(path : String, cache_dir : String, format : Format) -> Unit {
+  try check(path, cache_dir, format) catch {
     err => { @debug.debug(err); @env.exit(2) }
   } noraise {
     false => @env.exit(1)
@@ -64,10 +70,11 @@ async fn run(path : String, cache_dir : String, jev : Bool) -> Unit {
 
 async fn main {
   match @env.args()[1:] {
-    [path, cache_dir] => run(path, cache_dir, false)
-    [path, cache_dir, "--jev"] => run(path, cache_dir, true)
+    [path, cache_dir] => run(path, cache_dir, Decisions)
+    [path, cache_dir, "--jev"] => run(path, cache_dir, WorkersAI)
+    [path, cache_dir, "--systemone"] => run(path, cache_dir, SystemOne)
     _ => {
-      println("Expected a MoonBit source path, a private decision cache directory, and optional --jev.")
+      println("Expected a source path, private cache directory, and optional --jev or --systemone.")
       @env.exit(2)
     }
   }

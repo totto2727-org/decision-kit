@@ -56,15 +56,11 @@ const prime = async (cacheDir, request, probability, mock) => {
   if (Predicate.isNullish(probability)) {
     return []
   }
-  const payload =
-    request.provider === 'jev'
-      ? {
-          result: {
-            result: { answers: { accurate: { noul: probability, type: 'noul' } }, model: 'jev-1.13.0' },
-            state: 'Completed',
-          },
-          success: true,
-        }
+  const jevAnswer = { answers: { accurate: { noul: probability, type: 'noul' } }, model: 'jev-1.13.0' }
+  const payload = request.gatewayId
+    ? { result: { result: jevAnswer, state: 'Completed' }, success: true }
+    : request.provider === 'jev'
+      ? jevAnswer
       : { answers: [{ name: request.name, probability, type: 'predicate' }], model: request.model }
   const fetch = mock.fn(() => Promise.resolve(Response.json(payload)))
   const writer = createDecisionClient({ cacheDir, fetch, mode: 'remote', token: 'mock-token', ttlSeconds: 3600 })
@@ -104,8 +100,14 @@ test('the native MoonBit lint script reads both Node SDK cache protocols offline
     model: 'typesafe/jev',
     provider: 'jev',
   }
-  const lint = (cacheDir, status, provider) => {
-    const args = provider === 'jev' ? ['--jev'] : []
+  const systemOne = {
+    ...openAI,
+    endpoint: 'https://api.typesafe.ai/v1/systemone',
+    model: 'jev-latest',
+    provider: 'jev',
+  }
+  const lint = (cacheDir, status, request) => {
+    const args = request.gatewayId ? ['--jev'] : request.provider === 'jev' ? ['--systemone'] : []
     return run('moon', ['run', '--target', 'native', 'lint.mbtx', '--', sourceName, cacheDir, ...args], {
       cwd,
       env: { ...process.env, MOON_HOME: moonHome, XDG_CACHE_HOME: Path.join(cwd, 'xdg-cache') },
@@ -118,6 +120,7 @@ test('the native MoonBit lint script reads both Node SDK cache protocols offline
     { caseName: 'openai-pass', probability: 0.98, request: openAI, status: 0 },
     { caseName: 'openai-miss', probability: null, request: openAI, status: 2 },
     { caseName: 'jev-finding', probability: 0.02, request: jev, status: 1 },
+    { caseName: 'systemone-finding', probability: 0.02, request: systemOne, status: 1 },
   ]
   await Promise.all(
     cases.map(async ({ caseName, probability, request, status }) => {
@@ -125,7 +128,7 @@ test('the native MoonBit lint script reads both Node SDK cache protocols offline
       mkdirSync(cacheDir, { mode: 0o700 })
       const expectedFiles = await prime(cacheDir, request, probability, t.mock)
       assert.deepEqual(readdirSync(cacheDir), expectedFiles)
-      const result = lint(cacheDir, status, request.provider)
+      const result = lint(cacheDir, status, request)
       if (status === 1) {
         assert.match(result.stdout, /sample_test\.mbt:1:\d+/u)
         assert.ok(result.stdout.includes(finding), result.stdout + result.stderr)
