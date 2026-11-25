@@ -27,6 +27,7 @@ Use `vp run fix` for formatting and supported lint fixes.
 Keep pnpm as the only package manager and retain the 24-hour minimum release age in strict mode.
 When upgrading Vite+, update the catalog entry and both overrides to match `vp toolchain`.
 Use the shared `@totto2727/oxlint` library preset, including type-aware checks.
+The two standalone Node process test harnesses use Oxlint's native correctness rules instead of the TypeScript preset.
 The Oxlint sample source is a test fixture, not SDK source, and is checked by its own plugin test.
 Keep Effect external to the ESM bundle.
 The SDK package exports the generated JavaScript and TypeScript declarations from `typescript/dist/`.

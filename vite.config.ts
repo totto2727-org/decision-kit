@@ -3,6 +3,7 @@ import libraryPreset from '@totto2727/oxlint/preset/library'
 import { defineConfig } from 'vite-plus'
 
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
+const nodeProcessTests = ['examples/mbtlint/interop.test.mjs', 'typescript/examples/oxlint/plugin.test.mjs']
 
 // oxlint-disable-next-line import/no-default-export -- Vite+ reads the default configuration export.
 export default defineConfig({
@@ -24,7 +25,7 @@ export default defineConfig({
   lint: {
     ...libraryPreset,
     env: { node: true },
-    ignorePatterns: [...ignorePatterns, 'typescript/examples/oxlint/sample.js'],
+    ignorePatterns: [...ignorePatterns, ...nodeProcessTests, 'typescript/examples/oxlint/sample.js'],
     options: { ...libraryPreset.options, typeCheck: true },
   },
   pack: {
@@ -47,7 +48,7 @@ export default defineConfig({
         command: 'vp pack',
       },
       check: {
-        command: 'vp check',
+        command: ['vp check', `vp exec oxlint ${nodeProcessTests.join(' ')}`],
         dependsOn: ['build'],
       },
       ci: {
