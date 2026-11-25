@@ -1,5 +1,15 @@
-_build/
-.mooncakes/
 node_modules/
 dist/
+.vite/
+.vite-plus/
+.DS_Store
+.env
+.env.*
+!.env.example
 tmp/
+.direnv/
+result
+result-*
+*.tgz
+_build/
+.mooncakes/

@@ -1,25 +1,29 @@
 {
   "name": "@totto2727/decision-kit",
   "version": "0.1.0",
+  "private": true,
   "description": "Node client for cached predicate decisions through Cloudflare AI Gateway",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/totto2727-org/decision-kit.git",
+    "directory": "typescript"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "types": "./dist/decision-kit.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/decision-kit.d.ts",
+      "import": "./dist/decision-kit.js"
     }
   },
-  "files": ["dist"],
-  "engines": { "node": ">=22.18.0" },
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "node --test index.test.ts",
-    "test:oxlint": "node --test examples/oxlint/plugin.test.mjs",
-    "prepack": "npm run build"
+  "dependencies": {
+    "effect": "^4.0.2"
   },
-  "devDependencies": {
-    "@types/node": "24.10.1",
-    "typescript": "5.9.3"
+  "engines": {
+    "node": ">=24"
   }
 }

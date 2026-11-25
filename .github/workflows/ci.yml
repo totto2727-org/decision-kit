@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: ci
+      - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
+      - name: Verify TypeScript library and Oxlint example
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
+          vp run ci
+
+  moonbit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: moonbit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          prepare-dev-shell: 'false'
+      - name: Verify MoonBit library
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE/moonbit#ci")"
+          moon update
+          moon fmt --check
+          moon check --deny-warn
+          moon build
+          moon test
+          moon package --list
+
+  check:
+    needs: [typescript, moonbit]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require both language jobs to pass
+        env:
+          TYPESCRIPT_RESULT: ${{ needs.typescript.result }}
+          MOONBIT_RESULT: ${{ needs.moonbit.result }}
+        run: |
+          printf 'TypeScript: %s\nMoonBit: %s\n' "$TYPESCRIPT_RESULT" "$MOONBIT_RESULT"
+          test "$TYPESCRIPT_RESULT" = success
+          test "$MOONBIT_RESULT" = success

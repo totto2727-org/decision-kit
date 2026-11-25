@@ -41,3 +41,8 @@ Do not use model judgments for automatic source rewrites.
 
 See [MoonBit](moonbit/) and [TypeScript](typescript/) for the two bindings.
 The [mbtlint example](examples/mbtlint/) and [Oxlint plugin](typescript/examples/oxlint/) use cache-only rule evaluation and never send source code to a provider.
+
+## Development
+
+See [AGENTS.md](AGENTS.md) for the local toolchains and verification commands.
+The repository validates both bindings without publishing packages to npm or Mooncakes.
