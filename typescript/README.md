@@ -63,7 +63,7 @@ Update the scope when effective authorization changes, not when an equivalent to
 Remote resolution sends the question and input to Cloudflare only on a local miss.
 It rejects redirects and does not switch providers or models after failure.
 Both routes send Gateway cache opt-in headers derived from the request identity and `ttlSeconds`.
-A switch to disable Gateway caching is future work tracked in Projektor as `DCKIT-1`.
+Projektor issue `DCKIT-1` tracks an option to omit the Gateway cache headers without changing local caching.
 
 `predicateKey(request)` returns the lowercase SHA-256 v1 digest shared with MoonBit.
 The OpenAI digest retains its original framing.

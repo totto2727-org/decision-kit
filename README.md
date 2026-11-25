@@ -24,7 +24,7 @@ Network failures, malformed responses, and cache misses are not a probability of
 
 Both routes opt in to Gateway caching with `cf-aig-cache-key`, `cf-aig-cache-ttl`, and `cf-aig-skip-cache: false`.
 The local cache remains separate from Gateway caching.
-An option to disable Gateway caching is future work tracked in Projektor as `DCKIT-1`.
+Projektor issue `DCKIT-1` tracks an option to omit these three headers and leave caching to the Gateway configuration.
 
 ### Interoperable cache
 
