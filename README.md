@@ -22,6 +22,7 @@ Network failures, malformed responses, and cache misses are not a probability of
 Supply the complete POST URL, not a base URL: the SDK does not append `/v1`, a provider name, or a method path.
 Pin that exact URL on the remote client when using a custom proxy, so a request cannot redirect the client's credential to another destination.
 The official direct endpoints and the original Cloudflare routes listed below work without a pin.
+If request fields can come from outside your application, pin even an official URL so the caller cannot select a different provider or Gateway account for that credential.
 
 | Wire format                                                                                        | Example endpoint                                                        | Authentication and routing                                    |
 | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- |
