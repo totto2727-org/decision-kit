@@ -23,11 +23,14 @@ An unavailable judgment exits with status `2`, a finding exits with `1`, and no 
 From the Decision Kit checkout root, run:
 
 ```sh
-MBTLINT_DIR=/path/to/mbtlint node --test examples/mbtlint/interop.test.mjs
+MBTLINT_DIR=/path/to/mbtlint nix develop .#moonbit-ci -c vp run test:mbtlint
 ```
 
-Use Node.js 24 or later, Moon `0.1.20261119` or compatible, and a local `mbtlint` checkout that contains `test/prepare-script-home.sh` and has its dependencies cached.
-The test uses that helper to prepare an isolated Moon registry and stages a locally built Decision Kit archive into it.
+Use Node.js 24 or later, Vite+, and a local `mbtlint` checkout.
+The Nix shell supplies Moon `0.1.20261119`.
+Cache the dependencies of both MoonBit modules before you run the test offline.
+The default `vp run test` skips this test when `MBTLINT_DIR` is not set.
+The test stages locally built `mbtlint` and Decision Kit archives in an isolated Moon registry.
 The TypeScript client writes the cache records using a mock transport.
 The test runs the native script against a test declaration containing Unicode.
 It verifies the OpenAI finding, pass, and miss cases, and that the same script can read separate Jev findings for Workers AI and System One.

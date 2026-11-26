@@ -110,13 +110,12 @@ The [Oxlint example](examples/oxlint/) uses `lookupSync(client, request)`, which
 Its visitor reports suspected title mismatches and unavailable evidence separately.
 Use the same request fields and source extraction for the process that populates the cache and the visitor that reads it.
 
-Run the following commands at the repository root to verify the SDK with mock transports and the example with a real Oxlint process:
+Run this command at the repository root to build the SDK and run the Vitest tests with mock transports and a real Oxlint process:
 
 ```sh
 vp run test
-vp run build
-vp run test:oxlint
 ```
 
+To run only the Oxlint test, use `vp run test:oxlint`.
 Set `OXLINT_BIN` to use a particular executable.
 The tests do not make live requests.

@@ -1,6 +1,7 @@
-/* oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access -- Oxlint passes the ESTree nodes and visitor context through its uncompiled JavaScript plugin interface. */
 import { createDecisionClient, lookupSync } from '@totto2727/decision-kit'
-import { Predicate, Result } from 'effect'
+import type { PredicateRequest } from '@totto2727/decision-kit'
+import { Predicate, Result, String } from 'effect'
+import type { RuleTester } from 'oxlint/plugins-dev'
 
 const requestFields = {
   endpoint: 'https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions',
@@ -11,19 +12,23 @@ const requestFields = {
   scope: 'local-demo',
 }
 
-export const requestForTestTitle = (title, callbackSource) => ({
+export const requestForTestTitle = (title: string, callbackSource: string): PredicateRequest => ({
   ...requestFields,
   input: `Title: ${JSON.stringify(title)}\nTest callback:\n${callbackSource}`,
 })
 
 const probabilityThreshold = 0.2
-const plugin = {
+type OxlintRule =
+  Parameters<RuleTester['run']> extends [ruleName: string, rule: infer Rule, ...args: unknown[]] ? Rule : never
+
+const plugin: { meta: { name: string }; rules: Record<string, OxlintRule> } = {
   meta: { name: 'decision-demo' },
   rules: {
     'accurate-test-title': {
       create(context) {
         // oxlint-disable-next-line node/no-process-env -- The CLI host selects the private cache directory via its environment.
-        const client = createDecisionClient({ cacheDir: process.env.DECISION_KIT_CACHE_DIR, ttlSeconds: 3600 })
+        const cacheDir = process.env['DECISION_KIT_CACHE_DIR'] ?? String.empty
+        const client = createDecisionClient({ cacheDir, ttlSeconds: 3600 })
         return {
           CallExpression(node) {
             if (node.callee.type !== 'Identifier' || node.callee.name !== 'test') {

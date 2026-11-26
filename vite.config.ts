@@ -3,7 +3,6 @@ import libraryPreset from '@totto2727/oxlint/preset/library'
 import { defineConfig } from 'vite-plus'
 
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
-const nodeProcessTests = ['examples/mbtlint/interop.test.mjs', 'typescript/examples/oxlint/plugin.test.mjs']
 
 // oxlint-disable-next-line import/no-default-export -- Vite+ reads the default configuration export.
 export default defineConfig({
@@ -25,7 +24,7 @@ export default defineConfig({
   lint: {
     ...libraryPreset,
     env: { node: true },
-    ignorePatterns: [...ignorePatterns, ...nodeProcessTests, 'typescript/examples/oxlint/sample.js'],
+    ignorePatterns: [...ignorePatterns, 'typescript/examples/oxlint/sample.js'],
     options: { ...libraryPreset.options, typeCheck: true },
   },
   pack: {
@@ -48,12 +47,12 @@ export default defineConfig({
         command: 'vp pack',
       },
       check: {
-        command: ['vp check', `vp exec oxlint ${nodeProcessTests.join(' ')}`],
+        command: 'vp check',
         dependsOn: ['build'],
       },
       ci: {
         command: '',
-        dependsOn: ['check', 'test', 'test:oxlint', 'package'],
+        dependsOn: ['check', 'test', 'package'],
       },
       fix: {
         command: 'vp check --fix',
@@ -64,14 +63,23 @@ export default defineConfig({
         dependsOn: ['build'],
       },
       test: {
+        cache: { env: ['MBTLINT_DIR', 'OXLINT_BIN'] },
         command: 'vp test run',
+        dependsOn: ['build'],
+      },
+      'test:mbtlint': {
+        cache: false,
+        command: [
+          'test -n "$MBTLINT_DIR" || (echo "Set MBTLINT_DIR to the local mbtlint checkout." >&2; exit 1)',
+          'vp test run examples/mbtlint/interop.test.ts',
+        ],
       },
       'test:oxlint': {
         cache: { env: ['OXLINT_BIN'] },
-        command: 'node --test typescript/examples/oxlint/plugin.test.mjs',
+        command: 'vp test run typescript/examples/oxlint/plugin.test.ts',
         dependsOn: ['build'],
       },
     },
   },
-  test: { include: ['typescript/**/*.test.ts'] },
+  test: { include: ['typescript/**/*.test.ts', 'examples/**/*.test.ts'] },
 })
