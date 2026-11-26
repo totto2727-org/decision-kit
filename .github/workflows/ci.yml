@@ -26,23 +26,17 @@ jobs:
   moonbit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: moonbit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
         with:
-          prepare-dev-shell: 'false'
-      - name: Verify MoonBit library
-        run: |
-          eval "$(nix print-dev-env "$GITHUB_WORKSPACE/moonbit#ci")"
-          moon update
-          moon fmt --check
-          moon check --deny-warn
-          moon build
-          moon test
-          moon package --list
+          dev-shell: moonbit-ci
+      - uses: totto2727-org/monorepo/.github/actions/setup-moonbit@main
+        with:
+          dev-shell: moonbit-ci
+      - uses: totto2727-org/monorepo/.github/actions/check-moonbit@main
+        with:
+          dev-shell: moonbit-ci
 
   check:
     needs: [typescript, moonbit]

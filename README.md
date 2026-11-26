@@ -78,4 +78,5 @@ The [mbtlint example](examples/mbtlint/) and [Oxlint plugin](typescript/examples
 ## Development
 
 See [AGENTS.md](AGENTS.md) for the local toolchains and verification commands.
-The repository validates both bindings without publishing packages to npm or Mooncakes.
+Pull requests validate both bindings without publishing.
+On pushes to `main`, the [publish workflow](.github/workflows/publish.yml) releases `@totto2727/decision-kit` to npm and `totto2727/decision-kit` to Mooncakes.

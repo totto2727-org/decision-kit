@@ -3,10 +3,11 @@
 
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
+    moonbit-env.url = "path:./moonbit";
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, moonbit-env, ... }:
     let
       supportedSystems = [
         "aarch64-darwin"
@@ -35,6 +36,9 @@
               vp config
             '';
           };
+        }
+        // pkgs.lib.optionalAttrs (builtins.hasAttr system moonbit-env.devShells) {
+          moonbit-ci = moonbit-env.devShells.${system}.ci;
         }
       );
     };
