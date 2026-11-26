@@ -1,7 +1,7 @@
+import type { Plugin } from '@oxlint/plugins'
 import { createDecisionClient, lookupSync } from '@totto2727/decision-kit'
 import type { PredicateRequest } from '@totto2727/decision-kit'
 import { Predicate, Result, String } from 'effect'
-import type { RuleTester } from 'oxlint/plugins-dev'
 
 const requestFields = {
   endpoint: 'https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions',
@@ -18,10 +18,8 @@ export const requestForTestTitle = (title: string, callbackSource: string): Pred
 })
 
 const probabilityThreshold = 0.2
-type OxlintRule =
-  Parameters<RuleTester['run']> extends [ruleName: string, rule: infer Rule, ...args: unknown[]] ? Rule : never
 
-const plugin: { meta: { name: string }; rules: Record<string, OxlintRule> } = {
+const plugin: Plugin = {
   meta: { name: 'decision-demo' },
   rules: {
     'accurate-test-title': {

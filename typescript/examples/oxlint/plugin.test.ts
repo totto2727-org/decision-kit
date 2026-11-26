@@ -69,10 +69,10 @@ describe('real Oxlint visitor', () => {
     expect(lintExample(cacheDir)).toMatchObject({
       diagnostics: [
         {
-          labels: [{ span: { line: 4 } }],
+          labels: [{ span: { line: 3 } }],
           message: 'The cached decision suggests this test title does not describe its assertion.',
         },
-        { labels: [{ span: { line: 6 } }], message: 'No usable cached test-title decision (cache-miss).' },
+        { labels: [{ span: { line: 5 } }], message: 'No usable cached test-title decision (cache-miss).' },
       ],
     })
   })

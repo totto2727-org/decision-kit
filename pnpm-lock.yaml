@@ -21,6 +21,9 @@ importers:
 
   .:
     devDependencies:
+      '@oxlint/plugins':
+        specifier: 1.94.0
+        version: 1.94.0
       '@totto2727/gitignore-patterns':
         specifier: ^0.1.0
         version: 0.1.0
