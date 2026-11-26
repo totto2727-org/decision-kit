@@ -54,7 +54,7 @@ Changing this setting neither disables the local disk cache nor changes its key.
 3. Concatenate the frames without a separator and compute the lowercase hexadecimal SHA-256 digest.
 4. In a caller-owned private directory, use `<digest>.json` as the cache slot.
 
-The [OpenAI](fixtures/predicate-v1.json), [Workers AI](fixtures/jev-predicate-v1.json), and [System One](fixtures/jev-systemone-v1.json) fixtures fix the expected Unicode digests independently of either language binding.
+The [OpenAI](moonbit/fixtures/predicate-v1.json), [Workers AI](moonbit/fixtures/jev-predicate-v1.json), and [System One](moonbit/fixtures/jev-systemone-v1.json) fixtures fix the expected Unicode digests independently of either language binding.
 Each entry contains `version: 1`, `key`, `createdAt`, `expiresAt`, and `probability`.
 Timestamps are integer Unix seconds and the probability must be a finite number in `[0, 1]`.
 An entry is usable only when the version and expected key match and `createdAt <= now < min(expiresAt, createdAt + requestedTTL)`.

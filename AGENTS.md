@@ -4,7 +4,7 @@
 
 - `typescript/` is the public npm package `@totto2727/decision-kit`. The workspace root stays private.
 - `moonbit/` is the native MoonBit module `totto2727/decision-kit`.
-- `fixtures/` contains shared protocol test vectors.
+- `moonbit/fixtures/` contains shared protocol test vectors.
 - `typescript/examples/oxlint/` and `examples/mbtlint/` show cache-only lint integrations.
 - `vite.config.ts` defines TypeScript formatting, linting, tests, packaging, and tasks.
 - `.github/workflows/ci.yml` validates the libraries independently and `.github/workflows/publish.yml` releases both packages on pushes to `main`.

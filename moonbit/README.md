@@ -3,7 +3,7 @@
 Import `totto2727/decision-kit` as `@decision_kit` in a native MoonBit package.
 Decision Kit uses the official MoonBit async filesystem and HTTP libraries and does not require a subprocess.
 Choose OpenAI Decisions or Jev when you construct a request.
-See the [shared cache contract](../README.md#interoperable-cache) for cache interoperability with TypeScript.
+See the [shared cache contract](https://github.com/totto2727-org/decision-kit#interoperable-cache) for cache interoperability with TypeScript.
 
 ## Read a predicate from the cache
 
@@ -119,4 +119,4 @@ The transport receives the endpoint, headers, and `Json` body and returns an HTT
 Use only trusted callbacks, since they receive the same credentials and input as the built-in transport and are responsible for not forwarding them.
 The tests do not contact the live provider or require credentials.
 
-Decision Kit uses the [MIT license](../LICENSE).
+Decision Kit uses the [MIT license](LICENSE).

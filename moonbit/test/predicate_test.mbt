@@ -30,7 +30,7 @@ fn field(fields : Map[String, Json], name : String) -> String raise {
 
 ///|
 async test "shared predicate v1 fixture encodes supplementary characters, CJK, newline and colon" {
-  let file = @fs.read_file("../fixtures/predicate-v1.json")
+  let file = @fs.read_file("fixtures/predicate-v1.json")
   guard @json.parse(file.text()) is Object(vector) else {
     fail("Invalid shared fixture")
   }

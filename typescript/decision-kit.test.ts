@@ -10,11 +10,11 @@ import { Effect, Predicate, Result } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 // oxlint-disable-next-line import/no-relative-parent-imports -- Both bindings consume this shared protocol fixture.
-import sharedJevVector from '../fixtures/jev-predicate-v1.json' with { type: 'json' }
+import sharedJevVector from '../moonbit/fixtures/jev-predicate-v1.json' with { type: 'json' }
 // oxlint-disable-next-line import/no-relative-parent-imports -- Both bindings consume this shared protocol fixture.
-import sharedSystemOneVector from '../fixtures/jev-systemone-v1.json' with { type: 'json' }
+import sharedSystemOneVector from '../moonbit/fixtures/jev-systemone-v1.json' with { type: 'json' }
 // oxlint-disable-next-line import/no-relative-parent-imports -- Both bindings consume this shared protocol fixture.
-import sharedVector from '../fixtures/predicate-v1.json' with { type: 'json' }
+import sharedVector from '../moonbit/fixtures/predicate-v1.json' with { type: 'json' }
 import { createDecisionClient, DecisionError, lookupSync, predicateKey } from './decision-kit.ts'
 import type { DecisionClient, DecisionErrorCode, PredicateRequest, RemoteCache } from './decision-kit.ts'
 

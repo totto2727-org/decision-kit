@@ -24,7 +24,7 @@ fn systemone_request(
 
 ///|
 async test "direct System One uses the independently calculated shared Unicode cache identity" {
-  let file = @fs.read_file("../fixtures/jev-systemone-v1.json")
+  let file = @fs.read_file("fixtures/jev-systemone-v1.json")
   guard @json.parse(file.text()) is Object(vector) else {
     fail("Invalid shared System One fixture")
   }

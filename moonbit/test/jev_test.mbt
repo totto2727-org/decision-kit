@@ -18,7 +18,7 @@ fn jev_request(
 
 ///|
 async test "shared Jev v1 fixture includes Unicode text and the Gateway ID in the digest" {
-  let file = @fs.read_file("../fixtures/jev-predicate-v1.json")
+  let file = @fs.read_file("fixtures/jev-predicate-v1.json")
   guard @json.parse(file.text()) is Object(vector) else {
     fail("Invalid shared fixture")
   }
