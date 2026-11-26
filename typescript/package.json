@@ -1,0 +1,32 @@
+{
+  "name": "@totto2727/decision-kit",
+  "version": "0.1.0",
+  "description": "Effect client for cached OpenAI Decisions and Jev predicates across direct, gateway, and proxy endpoints",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/totto2727-org/decision-kit.git",
+    "directory": "typescript"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/decision-kit.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/decision-kit.d.ts",
+      "import": "./dist/decision-kit.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

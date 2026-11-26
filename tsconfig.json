@@ -6,5 +6,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "*.tsx", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["examples/**/*.ts", "typescript/**/*.ts", "vite.config.ts"]
 }

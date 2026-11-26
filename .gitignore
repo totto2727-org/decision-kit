@@ -11,3 +11,5 @@ tmp/
 result
 result-*
 *.tgz
+_build/
+.mooncakes/

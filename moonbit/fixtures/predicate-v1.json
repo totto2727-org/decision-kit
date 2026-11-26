@@ -1,0 +1,9 @@
+{
+  "scope": "local-demo",
+  "endpoint": "https://gateway.ai.cloudflare.com/v1/example/team/openai/decisions",
+  "model": "gpt-6-luna",
+  "name": "accurate",
+  "instructions": "Does the test title describe its assertion?",
+  "input": "🌙\n東京:test",
+  "key": "4f4d091afff8db044b271f7905042f7f03a292ee6afc1d99824d1cef1c265c9e"
+}

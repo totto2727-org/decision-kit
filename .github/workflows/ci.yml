@@ -1,8 +1,5 @@
 name: CI
 
-# Keep this trigger when creating a project from the template.
-# Change it only for an explicit user request or a demonstrated project requirement.
-# Do not replace main-push publication with tag or release triggers.
 on:
   push:
     branches: [main]
@@ -12,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  typescript:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,7 +18,37 @@ jobs:
         with:
           dev-shell: ci
       - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
-      - name: Verify Vite+ project
+      - name: Verify TypeScript library and Oxlint example
         run: |
           eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
           vp run ci
+
+  moonbit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: moonbit-ci
+      - uses: totto2727-org/monorepo/.github/actions/setup-moonbit@main
+        with:
+          dev-shell: moonbit-ci
+      - uses: totto2727-org/monorepo/.github/actions/check-moonbit@main
+        with:
+          dev-shell: moonbit-ci
+
+  check:
+    needs: [typescript, moonbit]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require both language jobs to pass
+        env:
+          TYPESCRIPT_RESULT: ${{ needs.typescript.result }}
+          MOONBIT_RESULT: ${{ needs.moonbit.result }}
+        run: |
+          printf 'TypeScript: %s\nMoonBit: %s\n' "$TYPESCRIPT_RESULT" "$MOONBIT_RESULT"
+          test "$TYPESCRIPT_RESULT" = success
+          test "$MOONBIT_RESULT" = success

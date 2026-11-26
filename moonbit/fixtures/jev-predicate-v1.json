@@ -1,0 +1,11 @@
+{
+  "endpoint": "https://api.cloudflare.com/client/v4/accounts/example/ai/run",
+  "gatewayId": "team",
+  "input": "🌙\n東京:test",
+  "instructions": "Does the test title describe its assertion?",
+  "key": "70bbed2975c17cbe3b22d6c2bb37b7db931df6f161f1da9e2c57848675bad2ca",
+  "model": "typesafe/jev",
+  "name": "accurate",
+  "provider": "jev",
+  "scope": "local-demo"
+}

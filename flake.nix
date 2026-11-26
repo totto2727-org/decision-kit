@@ -1,12 +1,13 @@
 {
-  description = "A simple Vite+ library development environment";
+  description = "Decision Kit TypeScript development environment";
 
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
+    moonbit-env.url = "path:./moonbit";
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, moonbit-env, ... }:
     let
       supportedSystems = [
         "aarch64-darwin"
@@ -32,10 +33,12 @@
               pkgs.nixfmt
             ];
             shellHook = ''
-              # Enable Git Hook
               vp config
             '';
           };
+        }
+        // pkgs.lib.optionalAttrs (builtins.hasAttr system moonbit-env.devShells) {
+          moonbit-ci = moonbit-env.devShells.${system}.ci;
         }
       );
     };

@@ -1,0 +1,6 @@
+{
+  "jsPlugins": ["./plugin.ts"],
+  "rules": {
+    "decision-demo/accurate-test-title": "warn"
+  }
+}
