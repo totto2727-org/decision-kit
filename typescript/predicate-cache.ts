@@ -1,5 +1,5 @@
-// oxlint-disable-next-line rules/no-node-imports -- The cache key is synchronous for host lint visitors.
-import { createHash, randomUUID } from 'node:crypto'
+// oxlint-disable-next-line rules/no-node-imports, rules/no-raw-crypto -- The public predicate key and cache lookup are synchronous. Persisted cache keys use SHA-256.
+import { createHash } from 'node:crypto'
 // oxlint-disable-next-line rules/no-node-imports -- Oxlint rule visitors cannot suspend while reading the cache.
 import { readFileSync } from 'node:fs'
 // oxlint-disable-next-line rules/no-node-imports -- Exclusive open modes and atomic replacement protect shared cache files.
@@ -8,6 +8,7 @@ import { mkdir, open, rename, unlink } from 'node:fs/promises'
 import Path from 'node:path'
 
 import { Clock, Effect, Predicate, Schema } from 'effect'
+import { SecureRandom } from 'effect/crypto'
 
 import { decisionError, Probability } from './decision-contract.ts'
 import type { Decision, DecisionError, PredicateRequest } from './decision-contract.ts'
@@ -96,8 +97,8 @@ export const readCache = ({ path, key, ttl }: CacheSlot): Decision =>
     return record.probability
   })
 
-const writeRecord = async (slot: CacheSlot, record: typeof CacheRecord.Type): Promise<void> => {
-  const temporaryPath = Path.join(slot.dir, `.${record.key}.${randomUUID()}.tmp`)
+const writeRecord = async (slot: CacheSlot, record: typeof CacheRecord.Type, nonce: string): Promise<void> => {
+  const temporaryPath = Path.join(slot.dir, `.${record.key}.${nonce}.tmp`)
   await mkdir(slot.dir, { mode: PrivateDirectory, recursive: true })
   const file = await open(temporaryPath, 'wx', PrivateFile)
   try {
@@ -119,16 +120,24 @@ const writeRecord = async (slot: CacheSlot, record: typeof CacheRecord.Type): Pr
 export const writeCache = (slot: CacheSlot, probability: number): Effect.Effect<void, DecisionError> =>
   nowSeconds.pipe(
     Effect.flatMap((createdAt) =>
-      Effect.tryPromise({
-        catch: () => decisionError('cache-write', 'Could not write the local predicate decision.'),
-        try: async () =>
-          writeRecord(slot, {
-            createdAt,
-            expiresAt: createdAt + slot.ttl,
-            key: slot.key,
-            probability,
-            version: CacheVersion,
-          }),
-      }).pipe(Effect.uninterruptible),
+      Effect.gen(function* () {
+        const random = yield* SecureRandom.SecureRandom
+        const nonce = yield* random.uuidV4()
+        yield* Effect.tryPromise({
+          catch: () => decisionError('cache-write', 'Could not write the local predicate decision.'),
+          try: async () =>
+            writeRecord(
+              slot,
+              {
+                createdAt,
+                expiresAt: createdAt + slot.ttl,
+                key: slot.key,
+                probability,
+                version: CacheVersion,
+              },
+              nonce,
+            ),
+        })
+      }).pipe(Effect.provide(SecureRandom.layerWebCrypto), Effect.uninterruptible),
     ),
   )
