@@ -79,12 +79,10 @@ const writePackage = async (tree: typeof MoonTree.Type, registry: string, target
   await mkdir(Path.dirname(stagedArchive), { recursive: true })
   await mkdir(Path.dirname(stagedIndex), { recursive: true })
   await writeFile(stagedArchive, archive)
-  const digestArchive = Effect.gen(function* () {
-    const digest = yield* Digest.Digest
-    return yield* digest.digestHex(Digest.sha256, archive)
-  }).pipe(Effect.provide(Digest.layerWebCrypto))
   // oxlint-disable-next-line rules/no-effect-runtime-run -- This Node fixture stages the archive for the native Moon process.
-  const checksum = await Effect.runPromise(digestArchive)
+  const checksum = await Effect.runPromise(
+    Digest.Digest.use((digest) => digest.digestHex(Digest.sha256, archive)).pipe(Effect.provide(Digest.layerWebCrypto)),
+  )
   await writeFile(stagedIndex, `${JSON.stringify({ checksum, deps, name, version, yanked: false })}\n`)
 }
 
