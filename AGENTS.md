@@ -7,7 +7,7 @@
 - `moonbit/fixtures/` contains shared protocol test vectors.
 - `typescript/examples/oxlint/` and `examples/mbtlint/` show cache-only lint integrations.
 - `vite.config.ts` defines TypeScript formatting, linting, tests, packaging, and tasks.
-- `.github/workflows/ci.yml` validates the libraries independently and `.github/workflows/publish.yml` releases both packages on pushes to `main`.
+- `.github/workflows/ci.yml` validates the libraries independently and `.github/workflows/publish.yml` starts both release jobs on pushes to `main`.
 
 ## TypeScript development
 
@@ -23,6 +23,7 @@ The root Nix shell supplies nixfmt and enables local Git hooks through `vp confi
 Use `nix develop .#ci` for the hook-free shell.
 Run `vp run check`, `vp run test`, `vp run build`, `vp run package`, or `vp run test:oxlint` for individual checks.
 Use `vp run fix` for formatting and supported lint fixes.
+For offline interoperability with a local `mbtlint` checkout, run `MBTLINT_DIR=/path/to/mbtlint nix develop .#moonbit-ci -c vp run test:mbtlint` as described in the [example](examples/mbtlint/README.md).
 
 Keep pnpm as the only package manager and retain the 24-hour minimum release age in strict mode.
 When upgrading Vite+, update the catalog entry and both overrides to match `vp toolchain`.
@@ -48,6 +49,7 @@ The TypeScript setup follows `template-vite-plus-lib`.
 The MoonBit job adapts `template-moonbit-simple` to load the development shell for the nested module.
 Keep both validation jobs on pull requests and pushes to `main`.
 Keep both library publication jobs enabled on pushes to `main`. Do not publish from pull requests.
-Configure the npm Trusted Publisher for `totto2727-org/decision-kit` and the exact workflow filename `publish.yml`; the npm job publishes only `@totto2727/decision-kit` using OIDC provenance.
+Configure the npm Trusted Publisher for `totto2727-org/decision-kit` and the exact workflow filename `publish.yml`.
+The npm job stages only `@totto2727/decision-kit` with OIDC provenance. An npm maintainer approves the staged version for public release using 2FA.
 The Mooncakes job uses `MOONCAKES_TOKEN` and publishes the module at `moonbit/` with the pinned MoonBit shell.
 Bump the corresponding package version for each release. If npm requires a first authenticated release to register the trusted publisher, the package owner must bootstrap it.
