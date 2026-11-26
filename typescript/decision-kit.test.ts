@@ -1,5 +1,4 @@
 /* oxlint-disable rules/no-node-imports, node/no-sync -- These tests inspect the synchronous cache boundary and real Node filesystem permissions. */
-/* oxlint-disable eslint/no-magic-numbers -- Literal test probabilities, HTTP statuses and timestamps document the boundary cases. */
 /* oxlint-disable eslint/max-lines, eslint/max-lines-per-function, eslint/max-statements, vitest/max-expects -- Keep each scenario's wire, cache, and outcome checks together. */
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
