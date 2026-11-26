@@ -1,12 +1,12 @@
 /* oxlint-disable rules/no-node-imports -- Stage archives in a private Moon registry and run the native CLI. */
 import { spawnSync } from 'node:child_process'
 import type { SpawnSyncReturns } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import Path from 'node:path'
 
-import { Data, Predicate, Result, Schema } from 'effect'
+import { Data, Effect, Predicate, Result, Schema } from 'effect'
+import { Digest } from 'effect/crypto'
 
 const MoonModule = Schema.Struct({
   name: Schema.String,
@@ -79,7 +79,12 @@ const writePackage = async (tree: typeof MoonTree.Type, registry: string, target
   await mkdir(Path.dirname(stagedArchive), { recursive: true })
   await mkdir(Path.dirname(stagedIndex), { recursive: true })
   await writeFile(stagedArchive, archive)
-  const checksum = createHash('sha256').update(archive).digest('hex')
+  const digestArchive = Effect.gen(function* () {
+    const digest = yield* Digest.Digest
+    return yield* digest.digestHex(Digest.sha256, archive)
+  }).pipe(Effect.provide(Digest.layerWebCrypto))
+  // oxlint-disable-next-line rules/no-effect-runtime-run -- This Node fixture stages the archive for the native Moon process.
+  const checksum = await Effect.runPromise(digestArchive)
   await writeFile(stagedIndex, `${JSON.stringify({ checksum, deps, name, version, yanked: false })}\n`)
 }
 
